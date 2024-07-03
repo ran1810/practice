@@ -15,6 +15,7 @@ resource "google_compute_subnetwork" "private_subnet" {
   name          = "private-subnet"
   ip_cidr_range = "10.0.2.0/24"
   region        = var.region
+  purpose       = "PRIVATE_NAT"
   network       = google_compute_network.vpc_network.name
 }
 
@@ -33,37 +34,30 @@ resource "google_compute_firewall" "my_firewall" {
   source_ranges = [ "0.0.0.0/0" ]
 }
 
-resource "google_compute_global_address" "private_ip_address" {
-  name          = "private-ip-address"
-  purpose       = "VPC_PEERING"
-  address_type  = "INTERNAL"
-  prefix_length = 16
-  network       = google_compute_network.vpc_network.id
-}
+resource "google_compute_router" "router" {
+  name    = "my-router"
+  region  = google_compute_subnetwork.private_subnet.region
+  network = google_compute_network.vpc_network.id
 
-resource "google_service_networking_connection" "private_vpc_connection" {
-  network                 = google_compute_network.vpc_network.id
-  service                 = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
-}
-
-resource "random_id" "db_name_suffix" {
-  byte_length = 4
-}
-
-resource "google_compute_backend_service" "backend_service" {
-  name          = "backend-service"
-  health_checks = [google_compute_http_health_check.health_checks.id]
-  enable_cdn  = true
-  cdn_policy {
-    signed_url_cache_max_age_sec = 7200
+  bgp {
+    asn = 64514
   }
 }
 
-resource "google_compute_http_health_check" "health_checks" {
-  name               = "health-check"
-  request_path       = "/"
-  check_interval_sec = 1
-  timeout_sec        = 1
-}
+resource "google_compute_router_nat" "nat" {
+  name                               = "my-router-nat"
+  router                             = google_compute_router.router.name
+  region                             = google_compute_router.router.region
+  nat_ip_allocate_option             = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "LIST_OF_SUBNETWORKS"
 
+  subnetwork {
+    name                    = google_compute_subnetwork.private_subnet.id
+    source_ip_ranges_to_nat = ["ALL_IP_RANGES"]
+  }
+
+  log_config {
+    enable = true
+    filter = "ERRORS_ONLY"
+  }
+}
