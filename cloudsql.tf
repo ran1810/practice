@@ -27,7 +27,6 @@ resource "google_sql_database_instance" "sql_instance" {
     ip_configuration {
       ipv4_enabled    = "false"
       private_network = google_compute_network.vpc_network.id
-
     }
   }
 
