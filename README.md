@@ -16,9 +16,9 @@ Before applying this Terraform configuration, ensure you have:
 
 ### Set Up Google Cloud Project and Region
 
-Edit the variables.tf file to set your Google Cloud project ID and region:
+Required google provider for terraform
 
-```sh
+```hcl
 terraform {
   required_providers {
     google = {
@@ -27,7 +27,15 @@ terraform {
     }
   }
 }
+provider "google" {
+ # Configuration options
+project = var.project_id
+region = var.region
+}
+```
+Edit the variables.tf file to set your Google Cloud project ID and region:
 
+```hcl
 variable "project_id" {
   description = "The ID of the project in which to provision resources."
   default     = "your-project-id"
